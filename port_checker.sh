@@ -210,3 +210,4 @@ else
   export exec_command=$exec_on_fail
   notify ${mail_on_fail[@]} # т.к. сообщение содержит пробелы, то оно разбивается на элементы массива, даже если передавать в кавычках
 fi
+exit $retcode
