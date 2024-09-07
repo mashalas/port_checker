@@ -1,6 +1,8 @@
 #!/usr/bin/env sh
 
 NETCAT=nc
+PROTOCOL_TCP=TCP
+PROTOCOL_UDP=UDP
 
 usage()
 {
@@ -15,15 +17,16 @@ usage()
   echo '          * send an email message;'
   echo ' '
   echo 'OPTIONS'
-  echo '        -h | --help                     print this help'
-  echo '        -v | --verbose                  verbose mode'
-  echo '        -c | --comment                  text comment to be added to message for log-file and email'
-  echo '        --log-on-success <filename>     write to file message abount success connection'
-  echo '        --exec-on-success <command>     execute command if connection successfully'
-  echo '        --mail-on-success <receiver>    send email to receiver if connection successfully (multiple parameter - may be specified several times for sending to several receivers)'
-  echo '        --log-on-fail <filename>        write to file message abount failed connection'
-  echo '        --exec-on-fail <command>        execute command if connection failed'
-  echo '        --mail-on-fail <receiver>       send email to receiver if connection failed (multiple parameter - may be specified several times for sending to several receivers)'
+  echo '        -h | --help                     print this help.'
+  echo '        -v | --verbose                  verbose mode.'
+  echo '        -c | --comment                  text comment to be added to message for log-file and email.'
+  echo '        -u | --UDP | --udp              check UDP-port insted of TCP.'
+  echo '        --log-on-success <filename>     write to file message abount success connection.'
+  echo '        --exec-on-success <command>     execute command if connection successfully.'
+  echo '        --mail-on-success <receiver>    send email to receiver if connection successfully (multiple parameter - may be specified several times for sending to several receivers).'
+  echo '        --log-on-fail <filename>        write to file message abount failed connection.'
+  echo '        --exec-on-fail <command>        execute command if connection failed.'
+  echo '        --mail-on-fail <receiver>       send email to receiver if connection failed (multiple parameter - may be specified several times for sending to several receivers).'
 }
 
 notify()
@@ -89,6 +92,7 @@ mail_on_fail=()
 
 verbose=0
 comment=-
+protocol=$PROTOCOL_TCP
 positional=($0)  # нулевым позиционным параметром идёт имя вызываемого скрипта
 
 while [ $# -gt 0 ]
@@ -100,6 +104,7 @@ do
       exit
       ;;
     -v | --verbose ) verbose=1 ;;
+    -u | --udp | --UDP ) protocol=$PROTOCOL_UDP ;;
 
     # --- именованные параметры со значением параметра ---
     -c | --comment )
@@ -172,6 +177,7 @@ then
   echo verbose: $verbose
   echo host: $host
   echo port: $port
+  echo protocol: $protocol
   #echo positional: ${positional[@]}
   echo --- end of params: ---
 fi
@@ -180,7 +186,8 @@ export message="[20`date '+%y-%m-%d %H:%M:%S'`]"
 if [ "$comment" != "-" ]; then export message="$message ${comment}:" ; fi
 
 cmd=$NETCAT
-if [ $verbose -gt 0 ]; then cmd="$cmd -v" ; fi
+if [ $verbose -gt 0 ]; then cmd="$cmd -v"; fi
+if [ "$protocol" == "$PROTOCOL_UDP" ]; then cmd="$cmd -u"; fi
 cmd="$cmd -z -4 $host $port"
 # -v  verbose
 # -z  Perform  port  scan  (сразу завершить работу, если соединение удалось, иначе будет висеть подключенным)
@@ -192,13 +199,13 @@ retcode=$?; export retcode
 if [ $retcode -eq 0 ]
 then
   # порт открыт
-  export message="$message successfully connected to ${host}:${port}."
+  export message="$message successfully connected to ${host}:${port} by ${protocol}-protocol."
   export log_file=$log_on_success
   export exec_command=$exec_on_success
   notify ${mail_on_success[@]} # т.к. сообщение содержит пробелы, то оно разбивается на элементы массива, даже если передавать в кавычках
 else
   # не удалось установить соединение
-  export message="$message cannot connect to ${host}:${port}"
+  export message="$message cannot connect to ${host}:${port} by ${protocol}-protocol"
   export log_file=$log_on_fail
   export exec_command=$exec_on_fail
   notify ${mail_on_fail[@]} # т.к. сообщение содержит пробелы, то оно разбивается на элементы массива, даже если передавать в кавычках
