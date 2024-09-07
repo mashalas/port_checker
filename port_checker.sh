@@ -22,6 +22,7 @@ usage()
   echo '        -v | --verbose                    verbose mode.'
   echo '        -c | --comment                    text comment to be added to message for log-file and email.'
   echo '        -u | --UDP | --udp                check UDP-port insted of TCP.'
+  echo '        -s | --sender <sender>            Sets the From address when sending email.'
   echo ' '
   echo '        --log-on-success <filename>       write to file message abount success connection.'
   echo '        --exec-on-success <command>       execute command if connection successfully.'
@@ -45,7 +46,7 @@ notify()
   #echo exec_command: $exec_command
   #echo receivers: ${receivers[@]}
 
-  if [ $verbose -gt 0 ]; then echo $message ; fi
+  if [ $verbose -gt 0 ]; then echo $message; fi
 
   if [ ! -z $log_file ]
   then
@@ -67,7 +68,9 @@ notify()
     #echo MAILTO: $one_receiver
     #echo "$message" | $MAIL_PROGRAM -s "$message" $one_receiver
     cmd="$MAIL_PROGRAM -s \"$message\""
-    if [ "$attach" != "-" ]; then cmd="$cmd -a $attach"; fi
+    if [ "$attach" != "-" ]; then cmd="$cmd -a $attach"; fi  # attachement
+    if [ $verbose -gt 0 ]; then cmd="$cmd -v"; fi            # verbose mode for emailing
+    if [ $sender != "-" ]; then cmd="$cmd -r $sender"; fi    # sender insted of current user on current system
     cmd="$cmd $one_receiver"
     eval $cmd
   done
@@ -112,6 +115,7 @@ attach_on_fail=-
 verbose=0
 comment=-
 protocol=$PROTOCOL_TCP
+sender=-
 positional=($0)  # нулевым позиционным параметром идёт имя вызываемого скрипта
 
 while [ $# -gt 0 ]
@@ -162,6 +166,11 @@ do
       ;;
     --attach-on-fail )
       attach_on_fail=$2
+      shift
+      ;;
+
+    -s | --sender )
+      sender=$2
       shift
       ;;
 
@@ -224,6 +233,7 @@ if [ $verbose -gt 0 ]; then echo "Checking command: $cmd" ; fi
 eval $cmd
 retcode=$?; export retcode
 export attach
+export sender
 if [ $retcode -eq 0 ]
 then
   # порт открыт
