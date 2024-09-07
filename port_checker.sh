@@ -8,7 +8,7 @@ PROTOCOL_UDP=UDP
 usage()
 {
   echo 'SYNOPSIS'
-  echo '        port_check_and_notify.sh [options] host port'
+  echo '        port_checker.sh [options] host port'
   echo ' '
   echo 'DESCRIPTION'
   echo '        This script is designed to check the availability of network ports and perform actions depending on whether the port is open or not.'
@@ -18,16 +18,20 @@ usage()
   echo '          * send an email message;'
   echo ' '
   echo 'OPTIONS'
-  echo '        -h | --help                     print this help.'
-  echo '        -v | --verbose                  verbose mode.'
-  echo '        -c | --comment                  text comment to be added to message for log-file and email.'
-  echo '        -u | --UDP | --udp              check UDP-port insted of TCP.'
-  echo '        --log-on-success <filename>     write to file message abount success connection.'
-  echo '        --exec-on-success <command>     execute command if connection successfully.'
-  echo '        --mail-on-success <receiver>    send email to receiver if connection successfully (multiple parameter - may be specified several times for sending to several receivers).'
-  echo '        --log-on-fail <filename>        write to file message abount failed connection.'
-  echo '        --exec-on-fail <command>        execute command if connection failed.'
-  echo '        --mail-on-fail <receiver>       send email to receiver if connection failed (multiple parameter - may be specified several times for sending to several receivers).'
+  echo '        -h | --help                       print this help.'
+  echo '        -v | --verbose                    verbose mode.'
+  echo '        -c | --comment                    text comment to be added to message for log-file and email.'
+  echo '        -u | --UDP | --udp                check UDP-port insted of TCP.'
+  echo ' '
+  echo '        --log-on-success <filename>       write to file message abount success connection.'
+  echo '        --exec-on-success <command>       execute command if connection successfully.'
+  echo '        --mail-on-success <receiver>      send email to receiver if connection successfully (multiple parameter - may be specified several times for sending to several receivers).'
+  echo '        --attach-on-success <filename>    attach the file to letter if connection successfully.'
+  echo ' '
+  echo '        --log-on-fail <filename>          write to file message abount failed connection.'
+  echo '        --exec-on-fail <command>          execute command if connection failed.'
+  echo '        --mail-on-fail <receiver>         send email to receiver if connection failed (multiple parameter - may be specified several times for sending to several receivers).'
+  echo '        --attach-on-fail <filename>       attach the file to letter if connection failed.'
 }
 
 notify()
@@ -58,10 +62,14 @@ notify()
     fi
   fi
 
-  for elem in ${receivers[@]}
+  for one_receiver in ${receivers[@]}
   do
-    #echo MAILTO: $elem
-    echo "$message" | $MAIL_PROGRAM -s "$message" $elem
+    #echo MAILTO: $one_receiver
+    #echo "$message" | $MAIL_PROGRAM -s "$message" $one_receiver
+    cmd="$MAIL_PROGRAM -s \"$message\""
+    if [ "$attach" != "-" ]; then cmd="$cmd -a $attach"; fi
+    cmd="$cmd $one_receiver"
+    eval $cmd
   done
 }
 
@@ -94,10 +102,12 @@ fi
 log_on_success=-
 exec_on_success=-
 mail_on_success=()
+attach_on_success=-
 
 log_on_fail=-
 exec_on_fail=-
 mail_on_fail=()
+attach_on_fail=-
 
 verbose=0
 comment=-
@@ -133,6 +143,10 @@ do
       mail_on_success+=($2)
       shift
       ;;
+    --attach-on-success )
+      attach_on_success=$2
+      shift
+      ;;
 
     --log-on-fail )
       log_on_fail=$2
@@ -144,6 +158,10 @@ do
       ;;
     --mail-on-fail )
       mail_on_fail+=($2)
+      shift
+      ;;
+    --attach-on-fail )
+      attach_on_fail=$2
       shift
       ;;
 
@@ -205,18 +223,21 @@ cmd="$cmd -z -4 $host $port"
 if [ $verbose -gt 0 ]; then echo "Checking command: $cmd" ; fi
 eval $cmd
 retcode=$?; export retcode
+export attach
 if [ $retcode -eq 0 ]
 then
   # порт открыт
   export message="$message successfully connected to ${host}:${port} by ${protocol}-protocol."
   export log_file=$log_on_success
   export exec_command=$exec_on_success
+  export attach=$attach_on_success
   notify ${mail_on_success[@]} # т.к. сообщение содержит пробелы, то оно разбивается на элементы массива, даже если передавать в кавычках
 else
   # не удалось установить соединение
   export message="$message cannot connect to ${host}:${port} by ${protocol}-protocol"
   export log_file=$log_on_fail
   export exec_command=$exec_on_fail
+  export attach=$attach_on_fail
   notify ${mail_on_fail[@]} # т.к. сообщение содержит пробелы, то оно разбивается на элементы массива, даже если передавать в кавычках
 fi
 exit $retcode
