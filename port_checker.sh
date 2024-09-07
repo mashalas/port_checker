@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 
 NETCAT=nc
+MAIL_PROGRAM=mailx
 PROTOCOL_TCP=TCP
 PROTOCOL_UDP=UDP
 
@@ -60,12 +61,13 @@ notify()
   for elem in ${receivers[@]}
   do
     #echo MAILTO: $elem
-    echo "$message" | mailx -s "$message" $elem
+    echo "$message" | $MAIL_PROGRAM -s "$message" $elem
   done
 }
 
 #-----------------------------------------main------------------------------------------
-if [ -z $E_OPTERROR ]; then export E_OPTERROR=65 ; fi
+if [ -z $E_OPTERROR ]; then export E_OPTERROR=65; fi
+if [ -z $E_PROGRAM_NOT_FOUND ]; then export E_PROGRAM_NOT_FOUND=127; fi
 
 if [ $# -eq 0 ]
 then
@@ -79,7 +81,14 @@ $NETCAT --help > /dev/null 2>&1
 if [ $? -eq 127 ]
 then
   echo Cannot find netcat as \"$NETCAT\"
-  exit 127
+  exit $E_PROGRAM_NOT_FOUND
+fi
+# проверить, что почтовая программа определённая в константе MAIL_PROGRAMA установлен в системе
+which $MAIL_PROGRAM > /dev/null 2>&1
+if [ $? -ne 0 ]
+then
+  echo Cannot find mail-program as \"$MAIL_PROGRAM\"
+  exit $E_PROGRAM_NOT_FOUND
 fi
 
 log_on_success=-
